@@ -40,10 +40,10 @@ import (
 
 	"github.com/hyperledger/fabric/core/chaincode/shim"
 	"github.com/hyperledger/fabric/core/util"
-	"github.com/op/go-logging"
 )
 
-var myLogger = logging.MustGetLogger("housing")
+// "github.com/op/go-logging"
+// var myLogger = logging.MustGetLogger("housing")
 
 //============================================================================
 // Insurance Package Types:
@@ -482,19 +482,19 @@ func (t *SimpleChaincode) getAllTenancyContracts(stub shim.ChaincodeStubInterfac
 
 func (t *SimpleChaincode) testCert(stub shim.ChaincodeStubInterface, args []string) (bool, []byte, error) {
 
-	myLogger.Info("Start to test certificate ...")
+	fmt.Println("Start to test certificate ...")
 
 	metadata, err := stub.GetCallerMetadata()
 
 	if err != nil {
-		myLogger.Info("Failed getting metadata")
+		fmt.Println("Failed getting metadata")
 	}
 
 	if len(metadata) == 0 {
-		myLogger.Info("Invalid certificate. Empty")
+		fmt.Println("Invalid certificate. Empty")
 	}
 
-	myLogger.Info("metadata: " + string(metadata))
+	fmt.Println("metadata: " + string(metadata))
 	// rbacMetadata := new(RBACMetadata)
 
 	// _, err = asn1.Unmarshal(metadata, rbacMetadata)
@@ -514,10 +514,10 @@ func (t *SimpleChaincode) testCert(stub shim.ChaincodeStubInterface, args []stri
 		return false, nil, errors.New("Failed getting binding")
 	}
 
-	// myLogger.Info("passed certificate [% x]", rbacMetadata.Cert)
-	// myLogger.Info("passed sigma [% x]", rbacMetadata.Sigma)
-	myLogger.Info("passed payload [% x]", payload)
-	myLogger.Info("passed binding [% x]", binding)
+	// fmt.Println("passed certificate [% x]", rbacMetadata.Cert)
+	// fmt.Println("passed sigma [% x]", rbacMetadata.Sigma)
+	fmt.Println("passed payload [% x]", payload)
+	fmt.Println("passed binding [% x]", binding)
 
 	// ok, err := stub.VerifySignature(
 	// 	rbacMetadata.Cert,
@@ -531,14 +531,14 @@ func (t *SimpleChaincode) testCert(stub shim.ChaincodeStubInterface, args []stri
 	// 	return false, nil, fmt.Errorf("Signature is not valid")
 	// }
 
-	// myLogger.Info("Signature verified. Check for role...")
+	// fmt.Println("Signature verified. Check for role...")
 
 	return true, nil, nil
 }
 
 func (t *SimpleChaincode) checkCert(stub shim.ChaincodeStubInterface, args []string) ([]byte, error) {
 
-	myLogger.Info("Start to check certificate ...")
+	fmt.Println("Start to check certificate ...")
 
 	ok, _, err := t.testCert(stub, args)
 
@@ -549,7 +549,7 @@ func (t *SimpleChaincode) checkCert(stub shim.ChaincodeStubInterface, args []str
 		return nil, errors.New("The invoker does not have the required roles.")
 	}
 
-	myLogger.Info("End to check certificate ...")
+	fmt.Println("End to check certificate ...")
 
 	return nil, nil
 }
