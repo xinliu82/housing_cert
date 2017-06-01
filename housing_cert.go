@@ -34,6 +34,7 @@
 package main
 
 import (
+	"encoding/asn1"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -495,13 +496,14 @@ func (t *SimpleChaincode) testCert(stub shim.ChaincodeStubInterface, args []stri
 	}
 
 	fmt.Println("metadata: " + string(metadata))
-	// rbacMetadata := new(RBACMetadata)
 
-	// _, err = asn1.Unmarshal(metadata, rbacMetadata)
+	rbacMetadata := new(RBACMetadata)
 
-	// if err != nil {
-	// 	return false, nil, fmt.Errorf("Failed unmarshalling metadata [%s]", err)
-	// }
+	_, err = asn1.Unmarshal(metadata, rbacMetadata)
+
+	if err != nil {
+		return false, nil, fmt.Errorf("Failed unmarshalling metadata [%s]", err)
+	}
 
 	// Verify signature
 	payload, err := stub.GetPayload()
@@ -514,8 +516,8 @@ func (t *SimpleChaincode) testCert(stub shim.ChaincodeStubInterface, args []stri
 		return false, nil, errors.New("Failed getting binding")
 	}
 
-	// fmt.Println("passed certificate [% x]", rbacMetadata.Cert)
-	// fmt.Println("passed sigma [% x]", rbacMetadata.Sigma)
+	fmt.Println("passed certificate [% x]", rbacMetadata.Cert)
+	fmt.Println("passed sigma [% x]", rbacMetadata.Sigma)
 	fmt.Println("passed payload [% x]", payload)
 	fmt.Println("passed binding [% x]", binding)
 
