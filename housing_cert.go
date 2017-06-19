@@ -120,6 +120,14 @@ type Request struct {
 }
 
 //============================================================================
+// RBAC - A table structure to save roles of each user
+//============================================================================
+type RBAC struct {
+	CertID []byte `json:"CertID"`
+	Role   string `json:"Role"`
+}
+
+//============================================================================
 // RBACMetadata - RBAC Metadata data structure, retrived from application invoke
 //              - Cert
 //				- Sigma
@@ -323,6 +331,9 @@ func (t *HousingChaincode) Query(stub shim.ChaincodeStubInterface, function stri
 
 	} else if function == "getAllRequests" {
 		return t.getAllRequests(stub, args)
+
+	} else if function == "getAllRoles" {
+		return t.getAllRoles(stub, args)
 	}
 
 	return nil, errors.New("Received unsupported query parameter [" + function + "]")
@@ -949,7 +960,7 @@ func (t *HousingChaincode) deleteRowRequest(stub shim.ChaincodeStubInterface, ar
 //==============================================================================================================================
 // getTenancyContract - Query a row in the table Tenancy_Contract
 //    input  - key:value
-//						 "TenancyContractID"  : "T000100"
+//			   "TenancyContractID"  : "T000100"
 //		output - row
 //==============================================================================================================================
 func (t *HousingChaincode) getTenancyContract(stub shim.ChaincodeStubInterface, args []string) ([]byte, error) {
@@ -1720,6 +1731,85 @@ func (t *HousingChaincode) getAllRequests(stub shim.ChaincodeStubInterface, args
 	fmt.Println("End to query all requests.")
 
 	return jsonAllRequests, nil
+}
+
+//==============================================================================================================================
+// getAllRoles - Query all rows in the table RBAC
+//		input  - nil
+//
+//		output - rows in JSON
+//==============================================================================================================================
+func (t *HousingChaincode) getAllRoles(stub shim.ChaincodeStubInterface, args []string) ([]byte, error) {
+
+	if len(args) > 0 {
+		return nil, errors.New("Incorrect number of arguments. Expecting 0, no input needed ")
+	}
+
+	// callerCert, _err := stub.GetCallerCertificate()
+
+	// if _err != nil {
+	// 	return nil, fmt.Errorf("Failed getting caller certificate")
+	// }
+
+	// rcLOK, rcLErr := t.hasRole(stub, callerCert, "Landlord")
+
+	// if rcLErr != nil {
+	// 	return nil, fmt.Errorf("Failed checking role [%s]", rcLErr)
+	// }
+
+	// rcTOK, rcTErr := t.hasRole(stub, callerCert, "Tenant")
+
+	// if rcTErr != nil {
+	// 	return nil, fmt.Errorf("Failed checking role [%s]", rcTErr)
+	// }
+	// if !rcLOK && !rcTOK {
+	// 	return nil, errors.New("The invoker does not have the required roles.")
+	// }
+
+	fmt.Println("Start to query All roles ...")
+
+	var columns []shim.Column
+
+	rowChannel, err := stub.GetRows(RBACTableName, columns)
+
+	if err != nil {
+		return nil, fmt.Errorf("Query all roles failed. %s", err)
+	}
+
+	var rows []shim.Row
+	for {
+		select {
+		case row, ok := <-rowChannel:
+			if !ok {
+				rowChannel = nil
+			} else {
+				rows = append(rows, row)
+			}
+		}
+		if rowChannel == nil {
+			break
+		}
+	}
+
+	var rbacRows []RBAC
+
+	for i := 0; i < len(rows); i = i + 1 {
+		oneRow := rows[i]
+		oneRole := &RBAC{
+			oneRow.Columns[0].GetBytes(),
+			oneRow.Columns[1].GetString_(),
+		}
+		rbacRows = append(rbacRows, *oneRole)
+	}
+
+	jsonRows, err := json.Marshal(rbacRows)
+	if err != nil {
+		return nil, fmt.Errorf("Query all rolse failed. Error marshaling JSON: %s", err)
+	}
+
+	fmt.Println("End to query all roles ...")
+
+	return jsonRows, nil
 }
 
 //==============================================================================================================================
