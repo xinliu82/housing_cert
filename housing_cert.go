@@ -41,10 +41,7 @@ import (
 
 	"github.com/hyperledger/fabric/core/chaincode/shim"
 	"github.com/hyperledger/fabric/core/util"
-	"github.com/op/go-logging"
 )
-
-var myLogger = logging.MustGetLogger("HousingChaincode")
 
 //============================================================================
 // Insurance Package Types:
@@ -142,7 +139,7 @@ type RBACMetadata struct {
 //==============================================================================================================================
 func (t *HousingChaincode) Init(stub shim.ChaincodeStubInterface, function string, args []string) ([]byte, error) {
 
-	myLogger.Info("Start Init ...")
+	shim.LogInfo("Start Init ...")
 
 	if len(args) != 0 {
 		return nil, errors.New("incorrect number of arguments. Expecting 0")
@@ -151,7 +148,7 @@ func (t *HousingChaincode) Init(stub shim.ChaincodeStubInterface, function strin
 	// Verify Signature here
 	// if passed, continue to run; otherwise, stop here.
 
-	myLogger.Info("Creating Tables ...")
+	shim.LogInfo("Creating Tables ...")
 
 	err := stub.CreateTable("RBAC", []*shim.ColumnDefinition{
 		&shim.ColumnDefinition{Name: "ID", Type: shim.ColumnDefinition_BYTES, Key: true},
@@ -183,9 +180,9 @@ func (t *HousingChaincode) Init(stub shim.ChaincodeStubInterface, function strin
 		return nil, errors.New("Failed creating Request table.")
 	}
 
-	myLogger.Info("Creating Tables completes ...")
+	shim.LogInfo("Creating Tables completes ...")
 
-	// myLogger.Debug("Assign roles for default usernames ...")
+	// shim.LogInfo("Assign roles for default usernames ...")
 
 	// // 4 Roles: Landlord, Tenant, ServiceProvider, InsuranceCompany
 	// //          user_type1_0: Landlord
@@ -249,7 +246,7 @@ func (t *HousingChaincode) Init(stub shim.ChaincodeStubInterface, function strin
 	// 	return nil, fmt.Errorf("Failed assigning user_type8 role. [%s]", err)
 	// }
 
-	myLogger.Info("Init Done.")
+	shim.LogInfo("Init Done.")
 
 	return nil, nil
 }
@@ -2082,7 +2079,7 @@ func (t *HousingChaincode) extractARow2Update(stub shim.ChaincodeStubInterface, 
 //==============================================================================================================================
 func (t *HousingChaincode) hasRole(stub shim.ChaincodeStubInterface, IDCert []byte, roleToCheck string) (bool, error) {
 
-	myLogger.Info("Start to check role of [" + roleToCheck + "]")
+	shim.LogInfo("Start to check role of [" + roleToCheck + "]")
 
 	var columns []shim.Column
 	idCol := shim.Column{Value: &shim.Column_Bytes{Bytes: IDCert}}
@@ -2102,14 +2099,14 @@ func (t *HousingChaincode) hasRole(stub shim.ChaincodeStubInterface, IDCert []by
 	result := strings.Split(roles, " ")
 	for i := range result {
 		if result[i] == roleToCheck {
-			myLogger.Debug("Role found.")
+			shim.LogInfo("Role found.")
 			return true, nil
 		}
 	}
 
-	myLogger.Debug("Role not found.")
+	shim.LogInfo("Role not found.")
 
-	myLogger.Info("End to check role of [" + roleToCheck + "]")
+	shim.LogInfo("End to check role of [" + roleToCheck + "]")
 
 	return false, nil
 }
