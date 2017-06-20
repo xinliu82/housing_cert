@@ -1890,7 +1890,12 @@ func (t *HousingChaincode) updateRowRequest(stub shim.ChaincodeStubInterface, ar
 	fmt.Println("Start to update a request ...")
 	requestID := args[3]
 
-	row, err := t.extractARow2Update(stub, RequestTableName, requestID)
+	var columns []shim.Column
+
+	keyCol1 := shim.Column{Value: &shim.Column_String_{String_: requestID}}
+	columns = append(columns, keyCol1)
+
+	row, err := stub.GetRow(RequestTableName, columns)
 
 	if err != nil {
 		return nil, fmt.Errorf("UpdateRequest failed. %s", err)
