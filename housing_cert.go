@@ -153,7 +153,7 @@ func (t *HousingChaincode) Init(stub shim.ChaincodeStubInterface, function strin
 	myLogger.Info("Creating Tables ...")
 
 	err := stub.CreateTable("RBAC", []*shim.ColumnDefinition{
-		&shim.ColumnDefinition{Name: "ID", Type: shim.ColumnDefinition_BYTES, Key: true},
+		&shim.ColumnDefinition{Name: "CertID", Type: shim.ColumnDefinition_BYTES, Key: true},
 		&shim.ColumnDefinition{Name: "Roles", Type: shim.ColumnDefinition_STRING, Key: false},
 	})
 
@@ -470,7 +470,7 @@ func (t *HousingChaincode) deleteTable(stub shim.ChaincodeStubInterface, args []
 //==============================================================================================================================
 func (t *HousingChaincode) insertRowTenancyContract(stub shim.ChaincodeStubInterface, args []string) ([]byte, error) {
 
-	if len(args) != 6 {
+	if len(args) != 12 {
 		return nil, errors.New("Incorrect number of arguments. Expecting 6")
 	}
 
@@ -479,6 +479,8 @@ func (t *HousingChaincode) insertRowTenancyContract(stub shim.ChaincodeStubInter
 	if _err != nil {
 		return nil, fmt.Errorf("Failed getting caller certificate.")
 	}
+
+	myLogger.Info(string(callerCert[:]))
 
 	rcOK, rcErr := t.hasRole(stub, callerCert, "Landlord")
 
@@ -505,7 +507,7 @@ func (t *HousingChaincode) insertRowTenancyContract(stub shim.ChaincodeStubInter
 		return nil, errors.New("Failed getting metadata.")
 	}
 	if len(callerMetadata) == 0 {
-		return nil, errors.New("Invalid Landlord certificate. Empty.")
+		return nil, errors.New("Invalid Landlord caller metadata. Empty.")
 	}
 
 	landlordSigma = callerMetadata
@@ -845,23 +847,69 @@ func (t *HousingChaincode) insertRowRBAC(stub shim.ChaincodeStubInterface, args 
 		return nil, fmt.Errorf("Failed getting caller certificate")
 	}
 
-	var columns []*shim.Column
-	col1 := shim.Column{Value: &shim.Column_Bytes{Bytes: callerCert}}
-	col2 := shim.Column{Value: &shim.Column_String_{String_: roleToInsert}}
+	myLogger.Info("Caller certificate [" + string(callerCert[:]) + "]")
 
-	columns = append(columns, &col1)
-	columns = append(columns, &col2)
+	var columns []shim.Column
 
-	row := shim.Row{Columns: columns}
-	ok, err := stub.InsertRow(RBACTableName, row)
+	idCol := shim.Column{Value: &shim.Column_Bytes{Bytes: callerCert}}
+
+	columns = append(columns, idCol)
+	row, err := stub.GetRow(RBACTableName, columns)
 
 	if err != nil {
-		return nil, fmt.Errorf("Insert a row in RBAC table operation failed. %s", err)
+		return nil, fmt.Errorf("Failed retriving associated row [%s]", err)
 	}
 
-	if !ok {
-		return nil, errors.New("Insert a row in RBAC table operation failed. Row with given key already exists")
+	if len(row.Columns) == 0 {
+		// Insert row
+		ok, err := stub.InsertRow(RBACTableName, shim.Row{
+			Columns: []*shim.Column{
+				&shim.Column{Value: &shim.Column_Bytes{Bytes: callerCert}},
+				&shim.Column{Value: &shim.Column_String_{String_: roleToInsert}},
+			},
+		})
+		if err != nil {
+			return nil, fmt.Errorf("Failed inserting row [%s]", err)
+		}
+		if !ok {
+			return nil, errors.New("Failed inserting row.")
+		}
+
+	} else {
+		// Update row
+		ok, err := stub.ReplaceRow(RBACTableName, shim.Row{
+			Columns: []*shim.Column{
+				&shim.Column{Value: &shim.Column_Bytes{Bytes: callerCert}},
+				&shim.Column{Value: &shim.Column_String_{String_: row.Columns[1].GetString_() + " " + roleToInsert}},
+			},
+		})
+
+		if err != nil {
+			return nil, fmt.Errorf("Failed replacing row [%s]", err)
+		}
+
+		if !ok {
+			return nil, errors.New("Failed replacing row.")
+		}
 	}
+
+	// var columns []*shim.Column
+	// col1 := shim.Column{Value: &shim.Column_Bytes{Bytes: callerCert}}
+	// col2 := shim.Column{Value: &shim.Column_String_{String_: roleToInsert}}
+
+	// columns = append(columns, &col1)
+	// columns = append(columns, &col2)
+
+	// row := shim.Row{Columns: columns}
+	// ok, err := stub.InsertRow(RBACTableName, row)
+
+	// if err != nil {
+	// 	return nil, fmt.Errorf("Insert a row in RBAC table operation failed. %s", err)
+	// }
+
+	// if !ok {
+	// 	return nil, errors.New("Insert a row in RBAC table operation failed. Row with given key already exists")
+	// }
 
 	fmt.Println("Role [" + roleToInsert + "] is added ...")
 	return nil, nil
@@ -2079,21 +2127,25 @@ func (t *HousingChaincode) extractARow2Update(stub shim.ChaincodeStubInterface, 
 //				 "certID" : "xxx"
 //		output - row
 //==============================================================================================================================
-func (t *HousingChaincode) hasRole(stub shim.ChaincodeStubInterface, IDCert []byte, roleToCheck string) (bool, error) {
+func (t *HousingChaincode) hasRole(stub shim.ChaincodeStubInterface, certID []byte, roleToCheck string) (bool, error) {
 
 	myLogger.Info("Start to check role of [" + roleToCheck + "]")
 
+	myLogger.Info("Key is [" + string(certID[:]) + "]")
+
 	var columns []shim.Column
-	idCol := shim.Column{Value: &shim.Column_Bytes{Bytes: IDCert}}
+	idCol := shim.Column{Value: &shim.Column_Bytes{Bytes: certID}}
 
 	columns = append(columns, idCol)
 
-	row, err := stub.GetRow("RBAC", columns)
+	row, err := stub.GetRow(RBACTableName, columns)
+
 	if err != nil {
 		return false, fmt.Errorf("Failed retrieveing RBAC row [%s]", err)
 	}
 	if len(row.GetColumns()) == 0 {
-		return false, fmt.Errorf("Failed retrieveing RBAC row [%s]", err)
+		myLogger.Info("No entry found for [" + string(certID[:]) + "]")
+		return false, nil
 	}
 
 	roles := row.Columns[1].GetString_()
@@ -2102,6 +2154,7 @@ func (t *HousingChaincode) hasRole(stub shim.ChaincodeStubInterface, IDCert []by
 	for i := range result {
 		if result[i] == roleToCheck {
 			myLogger.Info("Role found.")
+			myLogger.Info("End to check role of [" + roleToCheck + "]")
 			return true, nil
 		}
 	}
