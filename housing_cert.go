@@ -1991,19 +1991,19 @@ func (t *HousingChaincode) signTenancyContract(stub shim.ChaincodeStubInterface,
 
 	fmt.Println("Start to sign a TenancyContract ...")
 
-	tenantSigma, _err := stub.GetCallerMetadata()
+	// tenantSigma, _err := stub.GetCallerMetadata()
 
-	if _err != nil {
-		return nil, fmt.Errorf("Failed getting caller metadata")
-	}
+	// if _err != nil {
+	// 	return nil, fmt.Errorf("Failed getting caller metadata")
+	// }
 
-	fmt.Println("metadata lenght: [" + strconv.Itoa(len(tenantSigma)) + "]")
+	// fmt.Println("metadata lenght: [" + strconv.Itoa(len(tenantSigma)) + "]")
 
-	if len(tenantSigma) == 0 {
-		return nil, errors.New("Invalid tenant metadata. Empty.")
-	}
+	// if len(tenantSigma) == 0 {
+	// 	return nil, errors.New("Invalid tenant metadata. Empty.")
+	// }
 
-	var newArgs = []string{args[2], args[3], "TenantSigma", string(tenantSigma[:])}
+	var newArgs = []string{args[2], args[3], "TenantSigma", ""}
 
 	signOK, signErr := t.updateRowTenancyContract(stub, newArgs)
 
@@ -2079,8 +2079,11 @@ func (t *HousingChaincode) updateRowTenancyContract(stub shim.ChaincodeStubInter
 			cellValue := []byte(args[i+1])
 			row.Columns[7] = &shim.Column{Value: &shim.Column_Bytes{Bytes: cellValue}}
 		case "TenantSigma":
-			cellValue := []byte(args[i+1])
-			row.Columns[8] = &shim.Column{Value: &shim.Column_Bytes{Bytes: cellValue}}
+			tenantSigma, _err := stub.GetCallerMetadata()
+			if _err != nil {
+				return nil, fmt.Errorf("Failed getting caller metadata")
+			}
+			row.Columns[8] = &shim.Column{Value: &shim.Column_Bytes{Bytes: tenantSigma}}
 		default:
 			return nil, errors.New("Unsupported Parameter " + args[i])
 		}
