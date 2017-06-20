@@ -2003,7 +2003,7 @@ func (t *HousingChaincode) signTenancyContract(stub shim.ChaincodeStubInterface,
 	signOK, signErr := t.updateRowTenancyContract(stub, newArgs)
 
 	if signErr != nil {
-		return nil, fmt.Errorf("Failed to sign tenancy contract.")
+		return nil, fmt.Errorf("Failed to sign tenancy contract.", signErr)
 	}
 
 	fmt.Println("Sign tenancy contract completes.")
@@ -2048,7 +2048,7 @@ func (t *HousingChaincode) updateRowTenancyContract(stub shim.ChaincodeStubInter
 	for i := 2; i < len(args); i = i + 2 {
 		colName := args[i]
 
-		fmt.Println(args[i] + ":" + args[i+1])
+		// fmt.Println(args[i] + ":" + args[i+1])
 
 		switch colName {
 
@@ -2076,13 +2076,12 @@ func (t *HousingChaincode) updateRowTenancyContract(stub shim.ChaincodeStubInter
 		case "TenantSigma":
 			cellValue := []byte(args[i+1])
 			row.Columns[8] = &shim.Column{Value: &shim.Column_Bytes{Bytes: cellValue}}
-
 		default:
 			return nil, errors.New("Unsupported Parameter " + args[i])
 		}
 	}
 
-	ok, err := stub.ReplaceRow(RequestTableName, row)
+	ok, err := stub.ReplaceRow(TenancyContractTableName, row)
 
 	if err != nil {
 		return nil, fmt.Errorf("Failed replacing row [%s]", err)
