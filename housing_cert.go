@@ -1124,12 +1124,10 @@ func (t *HousingChaincode) getTenancyContractsByID(stub shim.ChaincodeStubInterf
 	colValue = args[3]
 
 	if colName != "LandlordID" && colName != "TenantID" {
-		return nil, errors.New("Unsupoprted query arguments + [" + colName + "]")
+		return nil, errors.New("Unsupoprted query arguments [" + colName + "]")
 	}
 
-	var emptyArgs []string
-	emptyArgs[0] = args[0]
-	emptyArgs[1] = args[1]
+	var emptyArgs = []string{args[0], args[1]}
 
 	jsonTContracts, err := t.getAllTenancyContracts(stub, emptyArgs)
 
@@ -1354,9 +1352,7 @@ func (t *HousingChaincode) getInsuranceContractsByID(stub shim.ChaincodeStubInte
 		return nil, errors.New("unsupoprted query arguments [" + colName + "]")
 	}
 
-	var emptyArgs []string
-	emptyArgs[0] = args[0]
-	emptyArgs[1] = args[1]
+	var emptyArgs = []string{args[0], args[1]}
 
 	jsonAllRows, err := t.getAllInsuranceContracts(stub, emptyArgs)
 
@@ -1617,9 +1613,7 @@ func (t *HousingChaincode) getRequestsByID(stub shim.ChaincodeStubInterface, arg
 		return nil, errors.New("Unsupoprted query arguments [" + colName + "]")
 	}
 
-	var emptyArgs []string
-	emptyArgs[0] = args[0]
-	emptyArgs[1] = args[1]
+	var emptyArgs = []string{args[0], args[1]}
 
 	jsonRows, err := t.getAllRequests(stub, emptyArgs)
 
@@ -1994,13 +1988,9 @@ func (t *HousingChaincode) signTenancyContract(stub shim.ChaincodeStubInterface,
 
 	tenantSigma, _err := stub.GetCallerMetadata()
 
-	fmt.Println("check metadata error ...")
-
 	if _err != nil {
 		return nil, fmt.Errorf("Failed getting caller metadata")
 	}
-
-	fmt.Println("check metadata empty ...")
 
 	fmt.Println("metadata lenght: [" + strconv.Itoa(len(tenantSigma)) + "]")
 
@@ -2008,11 +1998,7 @@ func (t *HousingChaincode) signTenancyContract(stub shim.ChaincodeStubInterface,
 		return nil, errors.New("Invalid tenant metadata. Empty.")
 	}
 
-	var newArgs []string
-	newArgs[0] = args[2]
-	newArgs[1] = args[3]
-	newArgs[2] = "TenantSigma"
-	newArgs[3] = string(tenantSigma[:])
+	var newArgs = []string{args[2], args[3], "TenantSigma", string(tenantSigma[:])}
 
 	signOK, signErr := t.updateRowTenancyContract(stub, newArgs)
 
