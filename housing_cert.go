@@ -37,6 +37,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"strconv"
 	"strings"
 
 	"github.com/hyperledger/fabric/core/chaincode/shim"
@@ -1110,8 +1111,8 @@ func (t *HousingChaincode) getTenancyContract(stub shim.ChaincodeStubInterface, 
 //==============================================================================================================================
 func (t *HousingChaincode) getTenancyContractsByID(stub shim.ChaincodeStubInterface, args []string) ([]byte, error) {
 
-	if len(args) != 2 {
-		return nil, errors.New("Incorrect number of arguments. Expecting 2, \"LandlordID\" or \"TenantID\"")
+	if len(args) != 4 {
+		return nil, errors.New("Incorrect number of arguments. Expecting 4, \"LandlordID\" or \"TenantID\"")
 	}
 
 	fmt.Println("Start to query TenancyContractsByID ...")
@@ -1119,14 +1120,16 @@ func (t *HousingChaincode) getTenancyContractsByID(stub shim.ChaincodeStubInterf
 	var colName string
 	var colValue string
 
-	colName = args[0]
-	colValue = args[1]
+	colName = args[2]
+	colValue = args[3]
 
 	if colName != "LandlordID" && colName != "TenantID" {
 		return nil, errors.New("Unsupoprted query arguments + [" + colName + "]")
 	}
 
 	var emptyArgs []string
+	emptyArgs[0] = args[0]
+	emptyArgs[1] = args[1]
 
 	jsonTContracts, err := t.getAllTenancyContracts(stub, emptyArgs)
 
@@ -1335,7 +1338,7 @@ func (t *HousingChaincode) getInsuranceContract(stub shim.ChaincodeStubInterface
 //==============================================================================================================================
 func (t *HousingChaincode) getInsuranceContractsByID(stub shim.ChaincodeStubInterface, args []string) ([]byte, error) {
 
-	if len(args) != 2 {
+	if len(args) != 4 {
 		return nil, errors.New("Incorrect number of arguments. Expecting 2, \"LandlordID\" : \"Lxxxxxx\"")
 	}
 
@@ -1344,14 +1347,16 @@ func (t *HousingChaincode) getInsuranceContractsByID(stub shim.ChaincodeStubInte
 	var colName string
 	var colValue string
 
-	colName = args[0]
-	colValue = args[1]
+	colName = args[2]
+	colValue = args[3]
 
 	if colName != "LandlordID" {
 		return nil, errors.New("unsupoprted query arguments [" + colName + "]")
 	}
 
 	var emptyArgs []string
+	emptyArgs[0] = args[0]
+	emptyArgs[1] = args[1]
 
 	jsonAllRows, err := t.getAllInsuranceContracts(stub, emptyArgs)
 
@@ -1596,8 +1601,8 @@ func (t *HousingChaincode) getRequest(stub shim.ChaincodeStubInterface, args []s
 //==============================================================================================================================
 func (t *HousingChaincode) getRequestsByID(stub shim.ChaincodeStubInterface, args []string) ([]byte, error) {
 
-	if len(args) != 2 {
-		return nil, errors.New("Incorrect number of arguments. Expecting 2, \"LandlordID\" : \"Lxxxxxx\" or \"TenantID\" : \"Txxxxxx\" or \"ServiceProviderID\" : \"SPxxxxxx\" ")
+	if len(args) != 4 {
+		return nil, errors.New("Incorrect number of arguments. Expecting 4, \"LandlordID\" : \"Lxxxxxx\" or \"TenantID\" : \"Txxxxxx\" or \"ServiceProviderID\" : \"SPxxxxxx\" ")
 	}
 
 	fmt.Println("Start to query RequestsByID ...")
@@ -1605,14 +1610,16 @@ func (t *HousingChaincode) getRequestsByID(stub shim.ChaincodeStubInterface, arg
 	var colName string
 	var colValue string
 
-	colName = args[0]
-	colValue = args[1]
+	colName = args[2]
+	colValue = args[3]
 
 	if colName != "LandlordID" && colName != "TenantID" && colName != "ServiceProviderID" {
 		return nil, errors.New("Unsupoprted query arguments [" + colName + "]")
 	}
 
 	var emptyArgs []string
+	emptyArgs[0] = args[0]
+	emptyArgs[1] = args[1]
 
 	jsonRows, err := t.getAllRequests(stub, emptyArgs)
 
@@ -1987,8 +1994,18 @@ func (t *HousingChaincode) signTenancyContract(stub shim.ChaincodeStubInterface,
 
 	tenantSigma, _err := stub.GetCallerMetadata()
 
+	fmt.Println("check metadata error ...")
+
 	if _err != nil {
 		return nil, fmt.Errorf("Failed getting caller metadata")
+	}
+
+	fmt.Println("check metadata empty ...")
+
+	fmt.Println("metadata lenght: [" + strconv.Itoa(len(tenantSigma)) + "]")
+
+	if len(tenantSigma) == 0 {
+		return nil, errors.New("Invalid tenant metadata. Empty.")
 	}
 
 	var newArgs []string
