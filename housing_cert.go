@@ -122,7 +122,7 @@ type Request struct {
 // RBAC - A table structure to save roles of each user
 //============================================================================
 type RBAC struct {
-	CertID []byte `json:"CertID"`
+	CertID string `json:"CertID"`
 	Role   string `json:"Role"`
 }
 
@@ -153,7 +153,7 @@ func (t *HousingChaincode) Init(stub shim.ChaincodeStubInterface, function strin
 	myLogger.Info("Creating Tables ...")
 
 	err := stub.CreateTable("RBAC", []*shim.ColumnDefinition{
-		&shim.ColumnDefinition{Name: "CertID", Type: shim.ColumnDefinition_BYTES, Key: true},
+		&shim.ColumnDefinition{Name: "CertID", Type: shim.ColumnDefinition_STRING, Key: true},
 		&shim.ColumnDefinition{Name: "Roles", Type: shim.ColumnDefinition_STRING, Key: false},
 	})
 
@@ -470,27 +470,19 @@ func (t *HousingChaincode) deleteTable(stub shim.ChaincodeStubInterface, args []
 //==============================================================================================================================
 func (t *HousingChaincode) insertRowTenancyContract(stub shim.ChaincodeStubInterface, args []string) ([]byte, error) {
 
-	if len(args) != 12 {
-		return nil, errors.New("Incorrect number of arguments. Expecting 6")
+	if len(args) != 14 {
+		return nil, errors.New("Incorrect number of arguments. Expecting 14 ...")
 	}
 
-	callerCert, _err := stub.GetCallerCertificate()
+	// callerCert, _err := stub.GetCallerCertificate()
 
-	if _err != nil {
-		return nil, fmt.Errorf("Failed getting caller certificate.")
-	}
+	// if _err != nil {
+	// 	return nil, fmt.Errorf("Failed getting caller certificate.")
+	// }
 
-	myLogger.Info(string(callerCert[:]))
+	// myLogger.Info(string(callerCert[:]))
 
-	rcOK, rcErr := t.hasRole(stub, callerCert, "Landlord")
-
-	if rcErr != nil {
-		return nil, fmt.Errorf("Failed checking role [%s]", rcErr)
-	}
-	if !rcOK {
-		return nil, errors.New("The invoker does not have the required roles.")
-	}
-
+	var callerCert string
 	var landlordID string
 	var tenantID string
 	var address string
@@ -513,8 +505,11 @@ func (t *HousingChaincode) insertRowTenancyContract(stub shim.ChaincodeStubInter
 	landlordSigma = callerMetadata
 
 	for i := 0; i < len(args); i = i + 2 {
+
 		switch args[i] {
 
+		case "Caller":
+			callerCert = args[i+1]
 		case "LandlordID":
 			landlordID = args[i+1]
 		case "TenantID":
@@ -531,6 +526,15 @@ func (t *HousingChaincode) insertRowTenancyContract(stub shim.ChaincodeStubInter
 		default:
 			return nil, errors.New("Unsupported Parameter " + args[i] + "!!!")
 		}
+	}
+
+	rcOK, rcErr := t.hasRole(stub, callerCert, "Landlord")
+
+	if rcErr != nil {
+		return nil, fmt.Errorf("Failed checking role [%s]", rcErr)
+	}
+	if !rcOK {
+		return nil, errors.New("The invoker does not have the required roles.")
 	}
 
 	tenancyContractID := util.GenerateUUID()
@@ -587,26 +591,17 @@ func (t *HousingChaincode) insertRowTenancyContract(stub shim.ChaincodeStubInter
 //==============================================================================================================================
 func (t *HousingChaincode) insertRowInsuranceContract(stub shim.ChaincodeStubInterface, args []string) ([]byte, error) {
 
-	if len(args) != 12 {
-		return nil, errors.New("Incorrect number of arguments. Expecting 12")
+	if len(args) != 14 {
+		return nil, errors.New("Incorrect number of arguments. Expecting 14")
 	}
 
-	callerCert, _err := stub.GetCallerCertificate()
+	// callerCert, _err := stub.GetCallerCertificate()
 
-	if _err != nil {
-		return nil, fmt.Errorf("Failed getting caller certificate")
-	}
+	// if _err != nil {
+	// 	return nil, fmt.Errorf("Failed getting caller certificate")
+	// }
 
-	rcLOK, rcLErr := t.hasRole(stub, callerCert, "Landlord")
-
-	if rcLErr != nil {
-		return nil, fmt.Errorf("Failed checking role [%s]", rcLErr)
-	}
-
-	if !rcLOK {
-		return nil, errors.New("The invoker does not have the required roles.")
-	}
-
+	var callerCert string
 	var insuranceCompany string
 	var landlordID string
 	var address string
@@ -617,6 +612,8 @@ func (t *HousingChaincode) insertRowInsuranceContract(stub shim.ChaincodeStubInt
 	for i := 0; i < len(args); i = i + 2 {
 		switch args[i] {
 
+		case "Caller":
+			callerCert = args[i+1]
 		case "InsuranceCompany":
 			insuranceCompany = args[i+1]
 		case "LandlordID":
@@ -640,6 +637,16 @@ func (t *HousingChaincode) insertRowInsuranceContract(stub shim.ChaincodeStubInt
 		default:
 			return nil, errors.New("Unsupported Parameter " + args[i] + "!!!")
 		}
+	}
+
+	rcLOK, rcLErr := t.hasRole(stub, callerCert, "Landlord")
+
+	if rcLErr != nil {
+		return nil, fmt.Errorf("Failed checking role [%s]", rcLErr)
+	}
+
+	if !rcLOK {
+		return nil, errors.New("The invoker does not have the required roles.")
 	}
 
 	insuranceContractID := util.GenerateUUID()
@@ -691,32 +698,17 @@ func (t *HousingChaincode) insertRowInsuranceContract(stub shim.ChaincodeStubInt
 //==============================================================================================================================
 func (t *HousingChaincode) insertRowRequest(stub shim.ChaincodeStubInterface, args []string) ([]byte, error) {
 
-	if len(args) < 4 {
-		return nil, errors.New("Incorrect number of arguments. Expecting >= 4, at least including LandlordID and TenantID")
+	if len(args) < 6 {
+		return nil, errors.New("Incorrect number of arguments. Expecting >= 6, at least including LandlordID and TenantID")
 	}
 
-	callerCert, _err := stub.GetCallerCertificate()
+	// callerCert, _err := stub.GetCallerCertificate()
 
-	if _err != nil {
-		return nil, fmt.Errorf("Failed getting caller certificate")
-	}
+	// if _err != nil {
+	// 	return nil, fmt.Errorf("Failed getting caller certificate")
+	// }
 
-	rcLOK, rcLErr := t.hasRole(stub, callerCert, "Landlord")
-
-	if rcLErr != nil {
-		return nil, fmt.Errorf("Failed checking role [%s]", rcLErr)
-	}
-
-	rcTOK, rcTErr := t.hasRole(stub, callerCert, "Tenant")
-
-	if rcTErr != nil {
-		return nil, fmt.Errorf("Failed checking role [%s]", rcTErr)
-	}
-
-	if !rcLOK && !rcTOK {
-		return nil, errors.New("The invoker does not have the required roles.")
-	}
-
+	var callerCert string
 	var landlordID string
 	var tenantID string
 	var address string
@@ -753,6 +745,8 @@ func (t *HousingChaincode) insertRowRequest(stub shim.ChaincodeStubInterface, ar
 	for i := 0; i < len(args); i = i + 2 {
 		switch args[i] {
 
+		case "Caller":
+			callerCert = args[i+1]
 		case "LandlordID":
 			landlordID = args[i+1]
 		case "TenantID":
@@ -774,6 +768,22 @@ func (t *HousingChaincode) insertRowRequest(stub shim.ChaincodeStubInterface, ar
 		default:
 			return nil, errors.New("Unsupported parameter " + args[i])
 		}
+	}
+
+	rcLOK, rcLErr := t.hasRole(stub, callerCert, "Landlord")
+
+	if rcLErr != nil {
+		return nil, fmt.Errorf("Failed checking role [%s]", rcLErr)
+	}
+
+	rcTOK, rcTErr := t.hasRole(stub, callerCert, "Tenant")
+
+	if rcTErr != nil {
+		return nil, fmt.Errorf("Failed checking role [%s]", rcTErr)
+	}
+
+	if !rcLOK && !rcTOK {
+		return nil, errors.New("The invoker does not have the required roles.")
 	}
 
 	requestID := util.GenerateUUID()
@@ -835,23 +845,25 @@ func (t *HousingChaincode) insertRowRBAC(stub shim.ChaincodeStubInterface, args 
 		return nil, errors.New("Incorrect number of arguments. Expecting 2")
 	}
 
-	if args[0] != "role" {
-		return nil, errors.New("Unsupported Parameter " + args[0] + "!!!")
-	}
+	// if args[0] != "role" {
+	// 	return nil, errors.New("Unsupported Parameter " + args[0] + "!!!")
+	// }
+
+	certID := args[0]
 
 	roleToInsert := args[1]
 
-	callerCert, _err := stub.GetCallerCertificate()
+	// callerCert, _err := stub.GetCallerCertificate()
 
-	if _err != nil {
-		return nil, fmt.Errorf("Failed getting caller certificate")
-	}
+	// if _err != nil {
+	// 	return nil, fmt.Errorf("Failed getting caller certificate")
+	// }
 
-	myLogger.Info("Caller certificate [" + string(callerCert[:]) + "]")
+	myLogger.Info("Caller certificate [" + certID + "]")
 
 	var columns []shim.Column
 
-	idCol := shim.Column{Value: &shim.Column_Bytes{Bytes: callerCert}}
+	idCol := shim.Column{Value: &shim.Column_String_{String_: certID}}
 
 	columns = append(columns, idCol)
 	row, err := stub.GetRow(RBACTableName, columns)
@@ -864,7 +876,7 @@ func (t *HousingChaincode) insertRowRBAC(stub shim.ChaincodeStubInterface, args 
 		// Insert row
 		ok, err := stub.InsertRow(RBACTableName, shim.Row{
 			Columns: []*shim.Column{
-				&shim.Column{Value: &shim.Column_Bytes{Bytes: callerCert}},
+				&shim.Column{Value: &shim.Column_String_{String_: certID}},
 				&shim.Column{Value: &shim.Column_String_{String_: roleToInsert}},
 			},
 		})
@@ -879,8 +891,8 @@ func (t *HousingChaincode) insertRowRBAC(stub shim.ChaincodeStubInterface, args 
 		// Update row
 		ok, err := stub.ReplaceRow(RBACTableName, shim.Row{
 			Columns: []*shim.Column{
-				&shim.Column{Value: &shim.Column_Bytes{Bytes: callerCert}},
-				&shim.Column{Value: &shim.Column_String_{String_: row.Columns[1].GetString_() + " " + roleToInsert}},
+				&shim.Column{Value: &shim.Column_String_{String_: certID}},
+				&shim.Column{Value: &shim.Column_String_{String_: row.Columns[1].GetString_() + ";" + roleToInsert}},
 			},
 		})
 
@@ -1012,19 +1024,21 @@ func (t *HousingChaincode) deleteRowRequest(stub shim.ChaincodeStubInterface, ar
 //==============================================================================================================================
 func (t *HousingChaincode) getTenancyContract(stub shim.ChaincodeStubInterface, args []string) ([]byte, error) {
 
-	if len(args) != 2 {
+	if len(args) != 4 {
 		return nil, errors.New("Incorrect number of arguments. Expecting 2, \"TenancyContractID\" : \"xxxxxx\"")
 	}
 
-	if args[0] != "TenancyContractID" {
-		return nil, errors.New("Unsupoprted query arguments [" + args[0] + "]")
+	if args[0] != "Caller" || args[2] != "TenancyContractID" {
+		return nil, errors.New("Unsupoprted query arguments [" + args[0] + "] or [" + args[2] + "]")
 	}
 
-	callerCert, _err := stub.GetCallerCertificate()
+	// callerCert, _err := stub.GetCallerCertificate()
 
-	if _err != nil {
-		return nil, fmt.Errorf("Failed getting caller certificate")
-	}
+	// if _err != nil {
+	// 	return nil, fmt.Errorf("Failed getting caller certificate")
+	// }
+
+	callerCert := args[1]
 
 	rcLOK, rcLErr := t.hasRole(stub, callerCert, "Landlord")
 
@@ -1044,7 +1058,7 @@ func (t *HousingChaincode) getTenancyContract(stub shim.ChaincodeStubInterface, 
 
 	fmt.Println("Start to query a TenancyContract ...")
 
-	tenancyContractID := args[1]
+	tenancyContractID := args[3]
 
 	var columns []shim.Column
 	keyCol1 := shim.Column{Value: &shim.Column_String_{String_: tenancyContractID}}
@@ -1160,15 +1174,15 @@ func (t *HousingChaincode) getTenancyContractsByID(stub shim.ChaincodeStubInterf
 //==============================================================================================================================
 func (t *HousingChaincode) getAllTenancyContracts(stub shim.ChaincodeStubInterface, args []string) ([]byte, error) {
 
-	if len(args) > 0 {
-		return nil, errors.New("Incorrect number of arguments. Expecting 0, no input needed ")
+	if len(args) > 2 {
+		return nil, errors.New("Incorrect number of arguments. Expecting 2, no input needed except caller ...")
 	}
 
-	callerCert, _err := stub.GetCallerCertificate()
-
-	if _err != nil {
-		return nil, fmt.Errorf("Failed getting caller certificate")
+	if args[0] != "Caller" {
+		return nil, errors.New("Unsupoprted query arguments [" + args[0] + "]")
 	}
+
+	callerCert := args[1]
 
 	rcLOK, rcLErr := t.hasRole(stub, callerCert, "Landlord")
 
@@ -1246,19 +1260,15 @@ func (t *HousingChaincode) getAllTenancyContracts(stub shim.ChaincodeStubInterfa
 //==============================================================================================================================
 func (t *HousingChaincode) getInsuranceContract(stub shim.ChaincodeStubInterface, args []string) ([]byte, error) {
 
-	if len(args) != 2 {
+	if len(args) != 4 {
 		return nil, errors.New("Incorrect number of arguments. Expecting 2, \"InsuranceContractID\" : \"xxxxxx\"")
 	}
 
-	if args[0] != "InsuranceContractID" {
-		return nil, errors.New("Unsupoprted query arguments [" + args[0] + "]")
+	if args[0] != "Caller" || args[2] != "InsuranceContractID" {
+		return nil, errors.New("Unsupoprted query arguments [" + args[0] + "] or [" + args[2] + "]")
 	}
 
-	callerCert, _err := stub.GetCallerCertificate()
-
-	if _err != nil {
-		return nil, fmt.Errorf("Failed getting caller certificate")
-	}
+	callerCert := args[1]
 
 	rcLOK, rcLErr := t.hasRole(stub, callerCert, "Landlord")
 
@@ -1278,7 +1288,7 @@ func (t *HousingChaincode) getInsuranceContract(stub shim.ChaincodeStubInterface
 
 	fmt.Println("Start to query a InsuranceContract ...")
 
-	insuranceContractID := args[1]
+	insuranceContractID := args[3]
 
 	var columns []shim.Column
 	keyCol1 := shim.Column{Value: &shim.Column_String_{String_: insuranceContractID}}
@@ -1409,15 +1419,15 @@ func (t *HousingChaincode) getInsuranceContractsByID(stub shim.ChaincodeStubInte
 //==============================================================================================================================
 func (t *HousingChaincode) getAllInsuranceContracts(stub shim.ChaincodeStubInterface, args []string) ([]byte, error) {
 
-	if len(args) > 0 {
+	if len(args) > 2 {
 		return nil, errors.New("Incorrect number of arguments. Expecting 0, no input needed ")
 	}
 
-	callerCert, _err := stub.GetCallerCertificate()
-
-	if _err != nil {
-		return nil, fmt.Errorf("Failed getting caller certificate")
+	if args[0] != "Caller" {
+		return nil, errors.New("Unsupoprted query arguments [" + args[0] + "]")
 	}
+
+	callerCert := args[1]
 
 	rcLOK, rcLErr := t.hasRole(stub, callerCert, "Landlord")
 
@@ -1493,19 +1503,15 @@ func (t *HousingChaincode) getAllInsuranceContracts(stub shim.ChaincodeStubInter
 //==============================================================================================================================
 func (t *HousingChaincode) getRequest(stub shim.ChaincodeStubInterface, args []string) ([]byte, error) {
 
-	if len(args) != 2 {
-		return nil, errors.New("Incorrect number of arguments. Expecting 2, \"RequestID\" : \"xxxxxx\"")
+	if len(args) != 4 {
+		return nil, errors.New("Incorrect number of arguments. Expecting 4, \"RequestID\" : \"xxxxxx\"")
 	}
 
-	if args[0] != "RequestID" {
-		return nil, errors.New("Unsupoprted query arguments [" + args[0] + "]")
+	if args[0] != "Caller" || args[2] != "RequestID" {
+		return nil, errors.New("Unsupoprted query arguments [" + args[0] + "] or [" + args[2] + "]")
 	}
 
-	callerCert, _err := stub.GetCallerCertificate()
-
-	if _err != nil {
-		return nil, fmt.Errorf("Failed getting caller certificate")
-	}
+	callerCert := args[1]
 
 	rcLOK, rcLErr := t.hasRole(stub, callerCert, "Landlord")
 
@@ -1513,18 +1519,10 @@ func (t *HousingChaincode) getRequest(stub shim.ChaincodeStubInterface, args []s
 		return nil, fmt.Errorf("Failed checking role [%s]", rcLErr)
 	}
 
-	if _err != nil {
-		return nil, fmt.Errorf("Failed getting caller certificate")
-	}
-
 	rcTOK, rcTErr := t.hasRole(stub, callerCert, "Tenant")
 
 	if rcTErr != nil {
 		return nil, fmt.Errorf("Failed checking role [%s]", rcTErr)
-	}
-
-	if _err != nil {
-		return nil, fmt.Errorf("Failed getting caller certificate")
 	}
 
 	rcSOK, rcSErr := t.hasRole(stub, callerCert, "ServiceProvider")
@@ -1539,7 +1537,7 @@ func (t *HousingChaincode) getRequest(stub shim.ChaincodeStubInterface, args []s
 
 	fmt.Println("Start to query a Request ...")
 
-	requestID := args[1]
+	requestID := args[3]
 
 	var columns []shim.Column
 	keyCol1 := shim.Column{Value: &shim.Column_String_{String_: requestID}}
@@ -1683,38 +1681,27 @@ func (t *HousingChaincode) getRequestsByID(stub shim.ChaincodeStubInterface, arg
 //==============================================================================================================================
 func (t *HousingChaincode) getAllRequests(stub shim.ChaincodeStubInterface, args []string) ([]byte, error) {
 
-	if len(args) > 0 {
-		return nil, errors.New("Incorrect number of arguments. Expecting 0, no input needed")
+	if len(args) > 2 {
+		return nil, errors.New("Incorrect number of arguments. Expecting 0, no input needed except caller")
 	}
 
-	callerCert, _err := stub.GetCallerCertificate()
-
-	if _err != nil {
-		return nil, fmt.Errorf("Failed getting caller certificate")
+	if args[0] != "Caller" {
+		return nil, errors.New("Unsupoprted query arguments [" + args[0] + "]")
 	}
+
+	callerCert := args[1]
 
 	rcLOK, rcLErr := t.hasRole(stub, callerCert, "Landlord")
-
 	if rcLErr != nil {
 		return nil, fmt.Errorf("Failed checking role [%s]", rcLErr)
 	}
 
-	if _err != nil {
-		return nil, fmt.Errorf("Failed getting caller certificate")
-	}
-
 	rcTOK, rcTErr := t.hasRole(stub, callerCert, "Tenant")
-
 	if rcTErr != nil {
 		return nil, fmt.Errorf("Failed checking role [%s]", rcTErr)
 	}
 
-	if _err != nil {
-		return nil, fmt.Errorf("Failed getting caller certificate")
-	}
-
 	rcSOK, rcSErr := t.hasRole(stub, callerCert, "ServiceProvider")
-
 	if rcSErr != nil {
 		return nil, fmt.Errorf("Failed checking role [%s]", rcSErr)
 	}
@@ -1843,7 +1830,7 @@ func (t *HousingChaincode) getAllRoles(stub shim.ChaincodeStubInterface, args []
 	for i := 0; i < len(rows); i = i + 1 {
 		oneRow := rows[i]
 		oneRole := &RBAC{
-			oneRow.Columns[0].GetBytes(),
+			oneRow.Columns[0].GetString_(),
 			oneRow.Columns[1].GetString_(),
 		}
 		rbacRows = append(rbacRows, *oneRole)
@@ -1867,19 +1854,15 @@ func (t *HousingChaincode) getAllRoles(stub shim.ChaincodeStubInterface, args []
 //==============================================================================================================================
 func (t *HousingChaincode) updateRowRequest(stub shim.ChaincodeStubInterface, args []string) ([]byte, error) {
 
-	if len(args)%2 != 0 || len(args) == 2 {
-		return nil, errors.New("Incorrect number of arguments")
+	if len(args)%2 != 0 || len(args) <= 4 {
+		return nil, errors.New("Incorrect number of arguments, expecting > 4")
 	}
 
-	if args[0] != "RequestID" {
-		return nil, errors.New("The first argument should be RequestID")
+	if args[0] != "Caller" || args[2] != "RequestID" {
+		return nil, errors.New("Unsupoprted query arguments [" + args[0] + "] or [" + args[2] + "]")
 	}
 
-	callerCert, _err := stub.GetCallerCertificate()
-
-	if _err != nil {
-		return nil, fmt.Errorf("Failed getting caller certificate")
-	}
+	callerCert := args[1]
 
 	rcLOK, rcLErr := t.hasRole(stub, callerCert, "Landlord")
 
@@ -1904,15 +1887,15 @@ func (t *HousingChaincode) updateRowRequest(stub shim.ChaincodeStubInterface, ar
 	}
 
 	fmt.Println("Start to update a request ...")
-	requestID := args[1]
+	requestID := args[3]
 
-	row, err := t.extractARow2Update(stub, "Request", requestID)
+	row, err := t.extractARow2Update(stub, RequestTableName, requestID)
 
 	if err != nil {
 		return nil, fmt.Errorf("UpdateRequest failed. %s", err)
 	}
 
-	for i := 2; i < len(args); i = i + 2 {
+	for i := 4; i < len(args); i = i + 2 {
 		colName := args[i]
 
 		switch colName {
@@ -1964,7 +1947,7 @@ func (t *HousingChaincode) updateRowRequest(stub shim.ChaincodeStubInterface, ar
 		}
 	}
 
-	ok, err := stub.ReplaceRow("Request", row)
+	ok, err := stub.ReplaceRow(RequestTableName, row)
 
 	if err != nil {
 		return nil, fmt.Errorf("Failed replacing row [%s]", err)
@@ -1980,19 +1963,15 @@ func (t *HousingChaincode) updateRowRequest(stub shim.ChaincodeStubInterface, ar
 
 func (t *HousingChaincode) signTenancyContract(stub shim.ChaincodeStubInterface, args []string) ([]byte, error) {
 
-	if len(args) != 2 {
-		return nil, errors.New("Incorrect number of arguments. Expecting 2, \"TenancyContractID\" : \"xxxxxx\"")
+	if len(args) != 4 {
+		return nil, errors.New("Incorrect number of arguments. Expecting 4, \"TenancyContractID\" : \"xxxxxx\"")
 	}
 
-	if args[0] != "TenancyContractID" {
-		return nil, errors.New("Unsupoprted query arguments [" + args[0] + "]")
+	if args[0] != "Caller" || args[2] != "TenancyContractID" {
+		return nil, errors.New("Unsupoprted query arguments [" + args[0] + "] or [" + args[2] + "]")
 	}
 
-	callerCert, _err := stub.GetCallerCertificate()
-
-	if _err != nil {
-		return nil, fmt.Errorf("Failed getting caller certificate")
-	}
+	callerCert := args[1]
 
 	rcTOK, rcTErr := t.hasRole(stub, callerCert, "Tenant")
 
@@ -2013,8 +1992,8 @@ func (t *HousingChaincode) signTenancyContract(stub shim.ChaincodeStubInterface,
 	}
 
 	var newArgs []string
-	newArgs[0] = args[0]
-	newArgs[1] = args[1]
+	newArgs[0] = args[2]
+	newArgs[1] = args[3]
 	newArgs[2] = "TenantSigma"
 	newArgs[3] = string(tenantSigma[:])
 
@@ -2038,7 +2017,7 @@ func (t *HousingChaincode) signTenancyContract(stub shim.ChaincodeStubInterface,
 //==============================================================================================================================
 func (t *HousingChaincode) updateRowTenancyContract(stub shim.ChaincodeStubInterface, args []string) ([]byte, error) {
 
-	if len(args)%2 != 0 || len(args) == 2 {
+	if len(args)%2 != 0 || len(args) <= 2 {
 		return nil, errors.New("Incorrect number of arguments")
 	}
 
@@ -2091,7 +2070,7 @@ func (t *HousingChaincode) updateRowTenancyContract(stub shim.ChaincodeStubInter
 		}
 	}
 
-	ok, err := stub.ReplaceRow("Request", row)
+	ok, err := stub.ReplaceRow(RequestTableName, row)
 
 	if err != nil {
 		return nil, fmt.Errorf("Failed replacing row [%s]", err)
@@ -2127,14 +2106,14 @@ func (t *HousingChaincode) extractARow2Update(stub shim.ChaincodeStubInterface, 
 //				 "certID" : "xxx"
 //		output - row
 //==============================================================================================================================
-func (t *HousingChaincode) hasRole(stub shim.ChaincodeStubInterface, certID []byte, roleToCheck string) (bool, error) {
+func (t *HousingChaincode) hasRole(stub shim.ChaincodeStubInterface, certID string, roleToCheck string) (bool, error) {
 
 	myLogger.Info("Start to check role of [" + roleToCheck + "]")
 
-	myLogger.Info("Key is [" + string(certID[:]) + "]")
+	myLogger.Info("Key is [" + certID + "]")
 
 	var columns []shim.Column
-	idCol := shim.Column{Value: &shim.Column_Bytes{Bytes: certID}}
+	idCol := shim.Column{Value: &shim.Column_String_{String_: certID}}
 
 	columns = append(columns, idCol)
 
@@ -2144,13 +2123,13 @@ func (t *HousingChaincode) hasRole(stub shim.ChaincodeStubInterface, certID []by
 		return false, fmt.Errorf("Failed retrieveing RBAC row [%s]", err)
 	}
 	if len(row.GetColumns()) == 0 {
-		myLogger.Info("No entry found for [" + string(certID[:]) + "]")
+		myLogger.Info("No entry found for [" + certID + "]")
 		return false, nil
 	}
 
 	roles := row.Columns[1].GetString_()
 
-	result := strings.Split(roles, " ")
+	result := strings.Split(roles, ";")
 	for i := range result {
 		if result[i] == roleToCheck {
 			myLogger.Info("Role found.")
