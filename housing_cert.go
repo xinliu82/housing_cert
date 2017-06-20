@@ -2038,10 +2038,6 @@ func (t *HousingChaincode) updateRowTenancyContract(stub shim.ChaincodeStubInter
 		return nil, fmt.Errorf("Get a row failed during updating. %s", err)
 	}
 
-	if len(row.Columns) != 0 {
-		return nil, errors.New("No tenancy contract found to sign ...")
-	}
-
 	fmt.Println("Column length is [" + strconv.Itoa(len(row.Columns)) + "]")
 
 	for i := 2; i < len(args); i = i + 2 {
@@ -2103,6 +2099,7 @@ func (t *HousingChaincode) updateRowTenancyContract(stub shim.ChaincodeStubInter
 //==============================================================================================================================
 func (t *HousingChaincode) extractARow2Update(stub shim.ChaincodeStubInterface, tableName string, ID string) (shim.Row, error) {
 
+	fmt.Println("Row to update with ID [" + ID + "]")
 	var columns []shim.Column
 
 	keyCol1 := shim.Column{Value: &shim.Column_String_{String_: ID}}
