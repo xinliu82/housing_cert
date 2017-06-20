@@ -2020,9 +2020,9 @@ func (t *HousingChaincode) signTenancyContract(stub shim.ChaincodeStubInterface,
 //==============================================================================================================================
 func (t *HousingChaincode) updateRowTenancyContract(stub shim.ChaincodeStubInterface, args []string) ([]byte, error) {
 
-	if len(args)%2 != 0 || len(args) <= 2 {
-		return nil, errors.New("Incorrect number of arguments")
-	}
+	// if len(args)%2 != 0 || len(args) <= 2 {
+	// 	return nil, errors.New("Incorrect number of arguments")
+	// }
 
 	if args[0] != "TenancyContractID" {
 		return nil, errors.New("The first argument should be TenancyContractID")
@@ -2038,8 +2038,16 @@ func (t *HousingChaincode) updateRowTenancyContract(stub shim.ChaincodeStubInter
 		return nil, fmt.Errorf("Get a row failed during updating. %s", err)
 	}
 
+	if len(row.Columns) != 0 {
+		return nil, errors.New("No tenancy contract found to sign ...")
+	}
+
+	fmt.Println("Column length is [" + strconv.Itoa(len(row.Columns)) + "]")
+
 	for i := 2; i < len(args); i = i + 2 {
 		colName := args[i]
+
+		fmt.Println(args[i] + ":" + args[i+1])
 
 		switch colName {
 
