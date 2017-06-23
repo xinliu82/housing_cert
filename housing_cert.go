@@ -295,8 +295,8 @@ func (t *HousingChaincode) Invoke(stub shim.ChaincodeStubInterface, function str
 	} else if function == "signTenancyContract" {
 		return t.signTenancyContract(stub, args)
 
-	} else if function == "updateRowTenancyContract" {
-		return t.updateRowTenancyContract(stub, args)
+	} else if function == "updateTenancyContract" {
+		return t.updateTenancyContract(stub, args)
 	}
 
 	return nil, errors.New("Unsupported Invoke Functions [" + function + "]")
@@ -2030,6 +2030,44 @@ func (t *HousingChaincode) signTenancyContract(stub shim.ChaincodeStubInterface,
 	}
 
 	fmt.Println("Sign tenancy contract completes.")
+
+	return signOK, nil
+}
+
+func (t *HousingChaincode) updateTenancyContract(stub shim.ChaincodeStubInterface, args []string) ([]byte, error) {
+
+	if len(args)%2 != 0 || len(args) <= 4 {
+		return nil, errors.New("Incorrect number of arguments. Expecting >=4, \"TenancyContractID\" : \"xxxxxx\"")
+	}
+
+	if args[0] != "Caller" || args[2] != "TenancyContractID" {
+		return nil, errors.New("Unsupoprted query arguments [" + args[0] + "] or [" + args[2] + "]")
+	}
+
+	callerCert := args[1]
+
+	rcLOK, rcLErr := t.hasRole(stub, callerCert, "Landlord")
+
+	if rcLErr != nil {
+		return nil, fmt.Errorf("Failed checking role [%s]", rcLErr)
+	}
+
+	if !rcLOK {
+		return nil, errors.New("The invoker does not have the required roles.")
+	}
+
+	fmt.Println("Start to update a TenancyContract ...")
+
+	newArgs := args[2:len(args)]
+	// var newArgs = []string{args[2], args[3], "TenantSigma", ""}
+
+	signOK, signErr := t.updateRowTenancyContract(stub, newArgs)
+
+	if signErr != nil {
+		return nil, fmt.Errorf("Failed to update tenancy contract.", signErr)
+	}
+
+	fmt.Println("Update tenancy contract completes.")
 
 	return signOK, nil
 }
