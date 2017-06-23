@@ -2021,9 +2021,9 @@ func (t *HousingChaincode) signTenancyContract(stub shim.ChaincodeStubInterface,
 	// 	return nil, errors.New("Invalid tenant metadata. Empty.")
 	// }
 
-	var newArgs = []string{args[2], args[3], "TenantSigma", ""}
+	newArgs := args[2:len(args)]
 
-	signOK, signErr := t.updateRowTenancyContract(stub, newArgs)
+	signOK, signErr := t.updateRowTenancyContract(stub, newArgs, 2)
 
 	if signErr != nil {
 		return nil, fmt.Errorf("Failed to sign tenancy contract.", signErr)
@@ -2056,18 +2056,18 @@ func (t *HousingChaincode) updateTenancyContract(stub shim.ChaincodeStubInterfac
 		return nil, errors.New("The invoker does not have the required roles.")
 	}
 
-	fmt.Println("Start to update a TenancyContract ...")
+	// fmt.Println("Start to update a TenancyContract ...")
 
 	newArgs := args[2:len(args)]
 	// var newArgs = []string{args[2], args[3], "TenantSigma", ""}
 
-	signOK, signErr := t.updateRowTenancyContract(stub, newArgs)
+	signOK, signErr := t.updateRowTenancyContract(stub, newArgs, 1)
 
 	if signErr != nil {
 		return nil, fmt.Errorf("Failed to update tenancy contract.", signErr)
 	}
 
-	fmt.Println("Update tenancy contract completes.")
+	// fmt.Println("Update tenancy contract completes.")
 
 	return signOK, nil
 }
@@ -2079,7 +2079,7 @@ func (t *HousingChaincode) updateTenancyContract(stub shim.ChaincodeStubInterfac
 //				 "Rent" : "3000RMB"
 //		output - nil
 //==============================================================================================================================
-func (t *HousingChaincode) updateRowTenancyContract(stub shim.ChaincodeStubInterface, args []string) ([]byte, error) {
+func (t *HousingChaincode) updateRowTenancyContract(stub shim.ChaincodeStubInterface, args []string, LorT int) ([]byte, error) {
 
 	// if len(args)%2 != 0 || len(args) <= 2 {
 	// 	return nil, errors.New("Incorrect number of arguments")
@@ -2089,7 +2089,7 @@ func (t *HousingChaincode) updateRowTenancyContract(stub shim.ChaincodeStubInter
 		return nil, errors.New("The first argument should be TenancyContractID")
 	}
 
-	fmt.Println("Start to update a tenancy contract ...")
+	fmt.Println("Start to query a tenancy contract ...")
 
 	tenancyContractID := args[1]
 
@@ -2114,6 +2114,20 @@ func (t *HousingChaincode) updateRowTenancyContract(stub shim.ChaincodeStubInter
 		return nil, errors.New("This is a signed contract by both landlord and tentant, cannot update ...")
 	}
 	// fmt.Println("Column length is [" + strconv.Itoa(len(row.Columns)) + "]")
+
+	if LorT == 1 {
+		LandlordSigma, _err := stub.GetCallerMetadata()
+		if _err != nil {
+			return nil, fmt.Errorf("Failed getting caller metadata")
+		}
+		row.Columns[7] = &shim.Column{Value: &shim.Column_Bytes{Bytes: LandlordSigma}}
+	} else if LorT == 2 {
+		tenantSigma, _err := stub.GetCallerMetadata()
+		if _err != nil {
+			return nil, fmt.Errorf("Failed getting caller metadata")
+		}
+		row.Columns[8] = &shim.Column{Value: &shim.Column_Bytes{Bytes: tenantSigma}}
+	}
 
 	for i := 2; i < len(args); i = i + 2 {
 		colName := args[i]
@@ -2140,22 +2154,24 @@ func (t *HousingChaincode) updateRowTenancyContract(stub shim.ChaincodeStubInter
 		case "EndDate":
 			cellValue := args[i+1]
 			row.Columns[6] = &shim.Column{Value: &shim.Column_String_{String_: cellValue}}
-		case "LandlordSigma":
-			LandlordSigma, _err := stub.GetCallerMetadata()
-			if _err != nil {
-				return nil, fmt.Errorf("Failed getting caller metadata")
-			}
-			row.Columns[7] = &shim.Column{Value: &shim.Column_Bytes{Bytes: LandlordSigma}}
-		case "TenantSigma":
-			tenantSigma, _err := stub.GetCallerMetadata()
-			if _err != nil {
-				return nil, fmt.Errorf("Failed getting caller metadata")
-			}
-			row.Columns[8] = &shim.Column{Value: &shim.Column_Bytes{Bytes: tenantSigma}}
+		// case "LandlordSigma":
+		// 	LandlordSigma, _err := stub.GetCallerMetadata()
+		// 	if _err != nil {
+		// 		return nil, fmt.Errorf("Failed getting caller metadata")
+		// 	}
+		// 	row.Columns[7] = &shim.Column{Value: &shim.Column_Bytes{Bytes: LandlordSigma}}
+		// case "TenantSigma":
+		// 	tenantSigma, _err := stub.GetCallerMetadata()
+		// 	if _err != nil {
+		// 		return nil, fmt.Errorf("Failed getting caller metadata")
+		// 	}
+		// 	row.Columns[8] = &shim.Column{Value: &shim.Column_Bytes{Bytes: tenantSigma}}
 		default:
 			return nil, errors.New("Unsupported Parameter " + args[i])
 		}
 	}
+
+	fmt.Println("Start to update a Tenancy Contract ...")
 
 	ok, err := stub.ReplaceRow(TenancyContractTableName, row)
 
