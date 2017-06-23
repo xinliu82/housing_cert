@@ -37,7 +37,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"strconv"
 	"strings"
 
 	"github.com/hyperledger/fabric/core/chaincode/shim"
@@ -295,6 +294,9 @@ func (t *HousingChaincode) Invoke(stub shim.ChaincodeStubInterface, function str
 
 	} else if function == "signTenancyContract" {
 		return t.signTenancyContract(stub, args)
+
+	} else if function == "updateRowTenancyContract" {
+		return t.updateRowTenancyContract(stub, args)
 	}
 
 	return nil, errors.New("Unsupported Invoke Functions [" + function + "]")
@@ -2064,7 +2066,16 @@ func (t *HousingChaincode) updateRowTenancyContract(stub shim.ChaincodeStubInter
 		return nil, fmt.Errorf("Get a row failed during updating. %s", _err)
 	}
 
-	fmt.Println("Column length is [" + strconv.Itoa(len(row.Columns)) + "]")
+	if len(row.Columns) == 0 {
+		return nil, errors.New("No contract available to update ...")
+	}
+
+	tSigma2Check := row.Columns[8].GetBytes()
+
+	if len(tSigma2Check) != 0 {
+		return nil, errors.New("This is a signed contract by both landlord and tentant, cannot update ...")
+	}
+	// fmt.Println("Column length is [" + strconv.Itoa(len(row.Columns)) + "]")
 
 	for i := 2; i < len(args); i = i + 2 {
 		colName := args[i]
@@ -2118,7 +2129,7 @@ func (t *HousingChaincode) updateRowTenancyContract(stub shim.ChaincodeStubInter
 		return nil, errors.New("Failed replacing row with Tenancy Contract ID [" + tenancyContractID + "].")
 	}
 
-	fmt.Println("End to update a request ...")
+	fmt.Println("End to update a Tenancy Contract ...")
 	return nil, nil
 }
 
