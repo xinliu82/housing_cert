@@ -291,7 +291,7 @@ func (t *HousingChaincode) Invoke(stub shim.ChaincodeStubInterface, function str
 		return t.updateRowRequest(stub, args)
 
 	} else if function == "addRole" {
-		return t.insertRowRBAC(stub, args)
+		return t.addRole(stub, args)
 
 	} else if function == "signTenancyContract" {
 		return t.signTenancyContract(stub, args)
@@ -834,13 +834,13 @@ func (t *HousingChaincode) insertRowRequest(stub shim.ChaincodeStubInterface, ar
 }
 
 //==============================================================================================================================
-// insertRowRBAC - Insert a row into the table RBAC Table, each user is able to insert a row in RBAC for himself / herself.
+// addRole - Insert a row into the table RBAC Table, each user is able to insert a row in RBAC for himself / herself.
 //    input - array of key:Value
 //            [
 //            "role" : "xxx";
 //            ]
 //==============================================================================================================================
-func (t *HousingChaincode) insertRowRBAC(stub shim.ChaincodeStubInterface, args []string) ([]byte, error) {
+func (t *HousingChaincode) addRole(stub shim.ChaincodeStubInterface, args []string) ([]byte, error) {
 
 	if len(args) != 2 {
 		return nil, errors.New("Incorrect number of arguments. Expecting 2")
@@ -853,6 +853,10 @@ func (t *HousingChaincode) insertRowRBAC(stub shim.ChaincodeStubInterface, args 
 	certID := args[0]
 
 	roleToInsert := args[1]
+
+	if roleToInsert == "" {
+		return nil, errors.New("Role to add is null, please identify rols.")
+	}
 
 	// callerCert, _err := stub.GetCallerCertificate()
 
@@ -889,6 +893,18 @@ func (t *HousingChaincode) insertRowRBAC(stub shim.ChaincodeStubInterface, args 
 		}
 
 	} else {
+
+		// Check if roleToInsert is existing in the table for certID
+		roles := row.Columns[1].GetString_()
+
+		result := strings.Split(roles, ";")
+
+		for i := range result {
+			if result[i] == roleToInsert {
+				myLogger.Info("Role [" + roleToInsert + "found for [" + certID + "], no need to add.")
+				return nil, nil
+			}
+		}
 		// Update row
 		ok, err := stub.ReplaceRow(RBACTableName, shim.Row{
 			Columns: []*shim.Column{
@@ -2076,8 +2092,11 @@ func (t *HousingChaincode) updateRowTenancyContract(stub shim.ChaincodeStubInter
 			cellValue := args[i+1]
 			row.Columns[6] = &shim.Column{Value: &shim.Column_String_{String_: cellValue}}
 		case "LandlordSigma":
-			cellValue := []byte(args[i+1])
-			row.Columns[7] = &shim.Column{Value: &shim.Column_Bytes{Bytes: cellValue}}
+			LandlordSigma, _err := stub.GetCallerMetadata()
+			if _err != nil {
+				return nil, fmt.Errorf("Failed getting caller metadata")
+			}
+			row.Columns[7] = &shim.Column{Value: &shim.Column_Bytes{Bytes: LandlordSigma}}
 		case "TenantSigma":
 			tenantSigma, _err := stub.GetCallerMetadata()
 			if _err != nil {
